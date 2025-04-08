@@ -4,92 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Offline Expense Manager</title>
+  <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-  <link rel="icon" href="data:,">
-  <meta name="theme-color" content="#007bff"/>
-  <meta name="description" content="Offline Expense Manager as a Single File App"/>
-</head>
-<body>
-  <button class="dark-toggle" onclick="toggleTheme()"><i data-lucide="moon"></i></button>
-  <div class="container">
-    <h1>Offline Expense Manager</h1>
-    <input type="text" id="title" placeholder="Expense Title" />
-    <input type="number" id="amount" placeholder="Amount" />
-    <select id="category">
-      <option value="Food">Food</option>
-      <option value="Transport">Transport</option>
-      <option value="Shopping">Shopping</option>
-      <option value="Utilities">Utilities</option>
-    </select>
-    <button onclick="addExpense()">Add Expense</button>
-    <ul id="expenseList"></ul>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script>
-    lucide.createIcons();
-
-    const theme = localStorage.getItem("theme") || "light";
-    document.documentElement.setAttribute("data-theme", theme);
-
-    function toggleTheme() {
-      const newTheme = theme === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("theme", newTheme);
-      lucide.createIcons();
-    }
-
-    function formatCurrency(amount) {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR'
-      }).format(amount);
-    }
-
-    function addExpense() {
-      const title = document.getElementById("title").value;
-      const amount = parseFloat(document.getElementById("amount").value);
-      const category = document.getElementById("category").value;
-      if (!title || !amount) {
-        Toastify({ text: "Please fill all fields", style: { background: "red" }}).showToast();
-        return;
-      }
-
-      const li = document.createElement("li");
-      li.innerHTML = `<span>${title} - ${category} - ${formatCurrency(amount)}</span>
-        <button onclick="this.parentElement.remove(); Toastify({ text: 'Deleted', style: { background: 'gray' }}).showToast();">
-          <i data-lucide='trash-2'></i>
-        </button>`;
-      document.getElementById("expenseList").appendChild(li);
-      lucide.createIcons();
-      Toastify({ text: "Expense added", style: { background: "green" }}).showToast();
-      document.getElementById("title").value = "";
-      document.getElementById("amount").value = "";
-    }
-
-    // PWA service worker inline setup
-    if ('serviceWorker' in navigator) {
-      const swCode = `
-        self.addEventListener('install', (e) => {
-          e.waitUntil(
-            caches.open('static').then((cache) => {
-              return cache.addAll(['./']);
-            })
-          );
-        });
-        self.addEventListener('fetch', (e) => {
-          e.respondWith(
-            caches.match(e.request).then((response) => response || fetch(e.request))
-          );
-        });
-      `;
-      const blob = new Blob([swCode], { type: 'text/javascript' });
-      const swURL = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(swURL).catch(console.error);
-    }
-  </script>
   <style>
     :root {
       --bg: #f9f9f9;
@@ -168,6 +85,88 @@
       cursor: pointer;
       color: var(--text);
     }
+    .pdf-button {
+      margin-top: 1rem;
+    }
   </style>
+</head>
+<body>
+  <button class="dark-toggle" onclick="toggleTheme()">
+    <i data-lucide="moon"></i>
+  </button>
+
+  <div class="container" id="expenseContainer">
+    <h1>Offline Expense Manager</h1>
+    <input type="text" id="title" placeholder="Expense Title" />
+    <input type="number" id="amount" placeholder="Amount" />
+    <select id="category">
+      <option value="Food">Food</option>
+      <option value="Transport">Transport</option>
+      <option value="Shopping">Shopping</option>
+      <option value="Utilities">Utilities</option>
+    </select>
+    <button onclick="addExpense()">Add Expense</button>
+    <ul id="expenseList"></ul>
+    <button class="pdf-button" onclick="downloadPDF()">Download PDF</button>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    lucide.createIcons();
+    const expenseList = document.getElementById("expenseList");
+    const theme = localStorage.getItem("theme") || "light";
+    document.documentElement.setAttribute("data-theme", theme);
+
+    function toggleTheme() {
+      const newTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", newTheme);
+      localStorage.setItem("theme", newTheme);
+      lucide.createIcons();
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR'
+      }).format(amount);
+    }
+
+    function addExpense() {
+      const title = document.getElementById("title").value;
+      const amount = parseFloat(document.getElementById("amount").value);
+      const category = document.getElementById("category").value;
+
+      if (!title || isNaN(amount)) {
+        Toastify({ text: "Please fill all fields", style: { background: "red" }}).showToast();
+        return;
+      }
+
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <span>${title} - ${category} - ${formatCurrency(amount)}</span>
+        <button onclick="this.parentElement.remove(); Toastify({ text: 'Deleted', style: { background: 'gray' }}).showToast();">
+          <i data-lucide="trash-2"></i>
+        </button>
+      `;
+      expenseList.appendChild(li);
+      lucide.createIcons();
+      Toastify({ text: "Expense added", style: { background: "green" }}).showToast();
+
+      document.getElementById("title").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function downloadPDF() {
+      const element = document.getElementById("expenseContainer");
+      html2pdf().from(element).save("expenses.pdf");
+    }
+
+    // PWA support
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(err => console.error("SW error", err));
+    }
+  </script>
 </body>
 </html>
