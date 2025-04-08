@@ -85,9 +85,6 @@
       cursor: pointer;
       color: var(--text);
     }
-    .pdf-button {
-      margin-top: 1rem;
-    }
   </style>
 </head>
 <body>
@@ -95,7 +92,7 @@
     <i data-lucide="moon"></i>
   </button>
 
-  <div class="container" id="expenseContainer">
+  <div class="container">
     <h1>Offline Expense Manager</h1>
     <input type="text" id="title" placeholder="Expense Title" />
     <input type="number" id="amount" placeholder="Amount" />
@@ -106,12 +103,11 @@
       <option value="Utilities">Utilities</option>
     </select>
     <button onclick="addExpense()">Add Expense</button>
+
     <ul id="expenseList"></ul>
-    <button class="pdf-button" onclick="downloadPDF()">Download PDF</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script>
     lucide.createIcons();
@@ -134,7 +130,7 @@
     }
 
     function addExpense() {
-      const title = document.getElementById("title").value;
+      const title = document.getElementById("title").value.trim();
       const amount = parseFloat(document.getElementById("amount").value);
       const category = document.getElementById("category").value;
 
@@ -158,12 +154,7 @@
       document.getElementById("amount").value = "";
     }
 
-    function downloadPDF() {
-      const element = document.getElementById("expenseContainer");
-      html2pdf().from(element).save("expenses.pdf");
-    }
-
-    // PWA support
+    // Register Service Worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(err => console.error("SW error", err));
     }
