@@ -1,11 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Offline Expense Manager</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css"/>
+  <title>Advanced Offline Expense Manager</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -31,7 +29,7 @@
       padding: 2rem;
     }
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: auto;
       background: white;
       border-radius: 1rem;
@@ -75,6 +73,9 @@
       justify-content: space-between;
       align-items: center;
     }
+    .actions button {
+      margin: 0.2rem 0.2rem;
+    }
     .dark-toggle {
       position: absolute;
       top: 1rem;
@@ -88,9 +89,7 @@
   </style>
 </head>
 <body>
-  <button class="dark-toggle" onclick="toggleTheme()">
-    <i data-lucide="moon"></i>
-  </button>
+  <button class="dark-toggle" onclick="toggleTheme()">🌓</button>
 
   <div class="container">
     <h1>Offline Expense Manager</h1>
@@ -104,22 +103,35 @@
     </select>
     <button onclick="addExpense()">Add Expense</button>
 
+    <div class="actions">
+      <button onclick="sortExpenses()">Sort by Amount</button>
+      <button onclick="filterCategory()">Filter by Category</button>
+      <button onclick="exportCSV()">Export as CSV</button>
+      <button onclick="exportPDF()">Export as PDF</button>
+      <button onclick="clearAll()">Clear All</button>
+      <button onclick="saveExpenses()">Save</button>
+      <button onclick="loadExpenses()">Load</button>
+    </div>
+
+    <input type="text" id="search" placeholder="Search expenses..." oninput="searchExpenses()" />
+
+    <h3>Total: <span id="total">₹0</span></h3>
+
     <ul id="expenseList"></ul>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    lucide.createIcons();
     const expenseList = document.getElementById("expenseList");
-    const theme = localStorage.getItem("theme") || "light";
-    document.documentElement.setAttribute("data-theme", theme);
+    const searchInput = document.getElementById("search");
+    const totalEl = document.getElementById("total");
+    let expenses = [];
 
     function toggleTheme() {
-      const newTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", newTheme);
-      localStorage.setItem("theme", newTheme);
-      lucide.createIcons();
+      const current = document.documentElement.getAttribute("data-theme");
+      const next = current === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
     }
 
     function formatCurrency(amount) {
@@ -130,34 +142,109 @@
     }
 
     function addExpense() {
-      const title = document.getElementById("title").value.trim();
+      const title = document.getElementById("title").value;
       const amount = parseFloat(document.getElementById("amount").value);
       const category = document.getElementById("category").value;
+      if (!title || !amount) return alert("Fill all fields!");
 
-      if (!title || isNaN(amount)) {
-        Toastify({ text: "Please fill all fields", style: { background: "red" }}).showToast();
-        return;
-      }
+      const expense = { title, amount, category };
+      expenses.push(expense);
+      renderExpenses();
+      updateTotal();
+      clearInputs();
+    }
 
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <span>${title} - ${category} - ${formatCurrency(amount)}</span>
-        <button onclick="this.parentElement.remove(); Toastify({ text: 'Deleted', style: { background: 'gray' }}).showToast();">
-          <i data-lucide="trash-2"></i>
-        </button>
-      `;
-      expenseList.appendChild(li);
-      lucide.createIcons();
-      Toastify({ text: "Expense added", style: { background: "green" }}).showToast();
+    function renderExpenses(filtered = expenses) {
+      expenseList.innerHTML = "";
+      filtered.forEach((e, i) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <span>${e.title} - ${e.category} - ${formatCurrency(e.amount)}</span>
+          <button onclick="deleteExpense(${i})">Delete</button>
+        `;
+        expenseList.appendChild(li);
+      });
+    }
 
+    function deleteExpense(index) {
+      expenses.splice(index, 1);
+      renderExpenses();
+      updateTotal();
+    }
+
+    function clearInputs() {
       document.getElementById("title").value = "";
       document.getElementById("amount").value = "";
     }
 
-    // Register Service Worker
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(err => console.error("SW error", err));
+    function updateTotal() {
+      const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+      totalEl.textContent = formatCurrency(total);
     }
+
+    function sortExpenses() {
+      expenses.sort((a, b) => b.amount - a.amount);
+      renderExpenses();
+    }
+
+    function filterCategory() {
+      const cat = prompt("Enter category to filter:");
+      if (!cat) return;
+      const filtered = expenses.filter(e => e.category.toLowerCase() === cat.toLowerCase());
+      renderExpenses(filtered);
+    }
+
+    function searchExpenses() {
+      const q = searchInput.value.toLowerCase();
+      const filtered = expenses.filter(e => e.title.toLowerCase().includes(q));
+      renderExpenses(filtered);
+    }
+
+    function clearAll() {
+      if (confirm("Are you sure to delete all?")) {
+        expenses = [];
+        renderExpenses();
+        updateTotal();
+      }
+    }
+
+    function saveExpenses() {
+      localStorage.setItem("expenses", JSON.stringify(expenses));
+      alert("Expenses saved locally.");
+    }
+
+    function loadExpenses() {
+      const saved = JSON.parse(localStorage.getItem("expenses") || "[]");
+      expenses = saved;
+      renderExpenses();
+      updateTotal();
+    }
+
+    function exportCSV() {
+      let csv = "Title,Amount,Category\n";
+      expenses.forEach(e => {
+        csv += `${e.title},${e.amount},${e.category}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "expenses.csv";
+      a.click();
+    }
+
+    async function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Expenses List", 20, 20);
+      expenses.forEach((e, i) => {
+        doc.text(`${i + 1}. ${e.title} - ₹${e.amount} - ${e.category}`, 20, 30 + i * 10);
+      });
+      doc.save("expenses.pdf");
+    }
+
+    // Load saved theme
+    document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");
+    loadExpenses();
   </script>
 </body>
 </html>
