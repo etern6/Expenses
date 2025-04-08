@@ -1,43 +1,36 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Advanced Offline Expense Manager</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Offline Expense Manager</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
   <style>
     :root {
-      --bg: #f9f9f9;
-      --text: #111;
+      --bg: #ffffff;
+      --text: #000000;
       --primary: #007bff;
     }
     [data-theme="dark"] {
       --bg: #121212;
-      --text: #f0f0f0;
-      --primary: #4f9cff;
-    }
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      transition: background 0.3s, color 0.3s;
+      --text: #ffffff;
+      --primary: #1e90ff;
     }
     body {
+      margin: 0;
+      padding: 2rem;
       font-family: 'Inter', sans-serif;
       background-color: var(--bg);
       color: var(--text);
-      padding: 2rem;
     }
     .container {
       max-width: 700px;
       margin: auto;
-      background: white;
+      background: var(--bg);
+      border: 1px solid #ccc;
       border-radius: 1rem;
       padding: 2rem;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    [data-theme="dark"] .container {
-      background: #1f1f1f;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.1);
     }
     h1 {
       text-align: center;
@@ -47,25 +40,30 @@
       width: 100%;
       padding: 0.8rem;
       margin: 0.5rem 0;
-      border: 1px solid #ccc;
       border-radius: 0.5rem;
+      border: 1px solid #ccc;
       background: var(--bg);
       color: var(--text);
     }
     button {
       background: var(--primary);
-      color: white;
-      font-weight: 600;
+      color: #fff;
+      font-weight: bold;
       cursor: pointer;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.5rem;
+      margin: 1rem 0;
     }
     ul {
       list-style: none;
-      margin-top: 1rem;
       padding: 0;
     }
     li {
-      padding: 1rem;
       background: var(--bg);
+      padding: 1rem;
       border: 1px solid #ddd;
       border-radius: 0.5rem;
       margin-bottom: 0.5rem;
@@ -73,18 +71,15 @@
       justify-content: space-between;
       align-items: center;
     }
-    .actions button {
-      margin: 0.2rem 0.2rem;
-    }
     .dark-toggle {
       position: absolute;
       top: 1rem;
       right: 1rem;
+      font-size: 1.2rem;
       background: none;
       border: none;
-      font-size: 1.2rem;
-      cursor: pointer;
       color: var(--text);
+      cursor: pointer;
     }
   </style>
 </head>
@@ -93,8 +88,8 @@
 
   <div class="container">
     <h1>Offline Expense Manager</h1>
-    <input type="text" id="title" placeholder="Expense Title" />
-    <input type="number" id="amount" placeholder="Amount" />
+    <input type="text" id="title" placeholder="Expense Title">
+    <input type="number" id="amount" placeholder="Amount">
     <select id="category">
       <option value="Food">Food</option>
       <option value="Transport">Transport</option>
@@ -103,17 +98,17 @@
     </select>
     <button onclick="addExpense()">Add Expense</button>
 
+    <input type="text" id="search" placeholder="Search..." oninput="searchExpenses()">
+
     <div class="actions">
       <button onclick="sortExpenses()">Sort by Amount</button>
-      <button onclick="filterCategory()">Filter by Category</button>
-      <button onclick="exportCSV()">Export as CSV</button>
-      <button onclick="exportPDF()">Export as PDF</button>
+      <button onclick="filterByCategory()">Filter by Category</button>
+      <button onclick="exportCSV()">Export to CSV</button>
+      <button onclick="exportPDF()">Export to PDF</button>
       <button onclick="clearAll()">Clear All</button>
       <button onclick="saveExpenses()">Save</button>
       <button onclick="loadExpenses()">Load</button>
     </div>
-
-    <input type="text" id="search" placeholder="Search expenses..." oninput="searchExpenses()" />
 
     <h3>Total: <span id="total">₹0</span></h3>
 
@@ -122,44 +117,44 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
-    const expenseList = document.getElementById("expenseList");
+    const titleInput = document.getElementById("title");
+    const amountInput = document.getElementById("amount");
+    const categoryInput = document.getElementById("category");
     const searchInput = document.getElementById("search");
+    const expenseList = document.getElementById("expenseList");
     const totalEl = document.getElementById("total");
+
     let expenses = [];
 
     function toggleTheme() {
-      const current = document.documentElement.getAttribute("data-theme");
-      const next = current === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-theme", next);
-      localStorage.setItem("theme", next);
-    }
-
-    function formatCurrency(amount) {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR'
-      }).format(amount);
+      const theme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
     }
 
     function addExpense() {
-      const title = document.getElementById("title").value;
-      const amount = parseFloat(document.getElementById("amount").value);
-      const category = document.getElementById("category").value;
-      if (!title || !amount) return alert("Fill all fields!");
+      const title = titleInput.value.trim();
+      const amount = parseFloat(amountInput.value);
+      const category = categoryInput.value;
 
-      const expense = { title, amount, category };
-      expenses.push(expense);
+      if (!title || !amount || isNaN(amount)) {
+        alert("Please fill all fields.");
+        return;
+      }
+
+      expenses.push({ title, amount, category });
+      titleInput.value = "";
+      amountInput.value = "";
       renderExpenses();
       updateTotal();
-      clearInputs();
     }
 
-    function renderExpenses(filtered = expenses) {
+    function renderExpenses(data = expenses) {
       expenseList.innerHTML = "";
-      filtered.forEach((e, i) => {
+      data.forEach((exp, i) => {
         const li = document.createElement("li");
         li.innerHTML = `
-          <span>${e.title} - ${e.category} - ${formatCurrency(e.amount)}</span>
+          <span>${exp.title} - ₹${exp.amount} - ${exp.category}</span>
           <button onclick="deleteExpense(${i})">Delete</button>
         `;
         expenseList.appendChild(li);
@@ -172,14 +167,9 @@
       updateTotal();
     }
 
-    function clearInputs() {
-      document.getElementById("title").value = "";
-      document.getElementById("amount").value = "";
-    }
-
     function updateTotal() {
       const total = expenses.reduce((sum, e) => sum + e.amount, 0);
-      totalEl.textContent = formatCurrency(total);
+      totalEl.textContent = `₹${total}`;
     }
 
     function sortExpenses() {
@@ -187,8 +177,8 @@
       renderExpenses();
     }
 
-    function filterCategory() {
-      const cat = prompt("Enter category to filter:");
+    function filterByCategory() {
+      const cat = prompt("Enter category:");
       if (!cat) return;
       const filtered = expenses.filter(e => e.category.toLowerCase() === cat.toLowerCase());
       renderExpenses(filtered);
@@ -201,7 +191,7 @@
     }
 
     function clearAll() {
-      if (confirm("Are you sure to delete all?")) {
+      if (confirm("Are you sure you want to delete all expenses?")) {
         expenses = [];
         renderExpenses();
         updateTotal();
@@ -210,14 +200,16 @@
 
     function saveExpenses() {
       localStorage.setItem("expenses", JSON.stringify(expenses));
-      alert("Expenses saved locally.");
+      alert("Saved to local storage.");
     }
 
     function loadExpenses() {
-      const saved = JSON.parse(localStorage.getItem("expenses") || "[]");
-      expenses = saved;
-      renderExpenses();
-      updateTotal();
+      const data = localStorage.getItem("expenses");
+      if (data) {
+        expenses = JSON.parse(data);
+        renderExpenses();
+        updateTotal();
+      }
     }
 
     function exportCSV() {
@@ -226,8 +218,9 @@
         csv += `${e.title},${e.amount},${e.category}\n`;
       });
       const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      a.href = url;
       a.download = "expenses.csv";
       a.click();
     }
@@ -235,14 +228,14 @@
     async function exportPDF() {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      doc.text("Expenses List", 20, 20);
+      doc.text("Expense List", 20, 20);
       expenses.forEach((e, i) => {
-        doc.text(`${i + 1}. ${e.title} - ₹${e.amount} - ${e.category}`, 20, 30 + i * 10);
+        doc.text(`${i + 1}. ${e.title} - ₹${e.amount} - ${e.category}`, 20, 30 + (i * 10));
       });
       doc.save("expenses.pdf");
     }
 
-    // Load saved theme
+    // Load theme + saved data
     document.documentElement.setAttribute("data-theme", localStorage.getItem("theme") || "light");
     loadExpenses();
   </script>
